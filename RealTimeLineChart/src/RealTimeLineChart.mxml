@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   minWidth="955" minHeight="600"
+			   creationComplete="application1_creationCompleteHandler(event)"
+			   initialize="application1_initializeHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			import mx.messaging.events.MessageAckEvent;
+			import mx.messaging.events.MessageEvent;
+			import mx.messaging.messages.AsyncMessage;
+			
+			private static const ARRAY_SIZE:int = 500;
+			private static const DATA_INTERVAL:int = 8;
+			private static const UPDATE_INTERVAL:int = 80;
+			
+			private var dummyUpdateTimer:Timer;
+			[Bindable]
+			private var chartData:ArrayCollection = new ArrayCollection;
+			private var chartIndex:int = 0;
+			
+			protected function application1_initializeHandler(event:FlexEvent):void
+			{
+				dummyUpdateTimer = new Timer(UPDATE_INTERVAL); // 20 millisecond
+				dummyUpdateTimer.addEventListener(TimerEvent.TIMER, populateChart);
+				var dummyArray:Array = new Array();
+				for(var i:int=0; i<ARRAY_SIZE; i++)
+				{
+					dummyArray[i]=128;
+				}
+				chartData = new ArrayCollection(dummyArray); 
+			}
+			
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				var message:AsyncMessage = new AsyncMessage();
+				message.body = "New";
+				producer.send(message);
+				consumer.subscribe();
+				dummyUpdateTimer.start();
+			}
+			
+			private function populateChart(event:TimerEvent):void 
+			{
+				//Trigger update
+				chartData.setItemAt(chartData.getItemAt(0), 0);
+			}
+			
+			private function onMsg(event:MessageEvent):void
+			{
+				var value:int = event.message.body as int;
+				//Does not trigger chart update
+				chartData.source[chartIndex] = value;
+				chartIndex++;
+				chartIndex%=ARRAY_SIZE;
+			}
+			
+			private function ack(event:MessageAckEvent):void
+			{
+				var value:int = event.message.body as int;
+				//Does not trigger chart update
+				chartData.source[chartIndex] = value;
+				chartIndex++;
+				chartIndex%=ARRAY_SIZE;
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Define custom Strokes. -->
+		<mx:SolidColorStroke id="s3" color="0x33F400" weight="1"/>
+		<mx:Producer id="producer" acknowledge="ack(event)" destination="RealTimeDataServicePush"/>
+		<mx:Consumer id="consumer" destination="RealTimeDataServicePush" message="onMsg(event)"/>
+	</fx:Declarations>
+	
+	<mx:CartesianChart id="linechart" width="100%" height="100%" cacheAsBitmap="true"
+					   cachePolicy="on" paddingLeft="5" paddingRight="5">
+		<mx:verticalAxis>
+			<mx:LinearAxis id="vAxis" alignLabelsToInterval="true" autoAdjust="false"
+						   baseAtZero="false" interval="16" maximum="256" minimum="0" padding="1"/>
+		</mx:verticalAxis>
+		<mx:verticalAxisRenderers>
+			<mx:AxisRenderer axis="{vAxis}" canDropLabels="true" color="0xF8F8F6" fontSize="8"/>
+		</mx:verticalAxisRenderers>
+		<mx:horizontalAxis>
+			<mx:LinearAxis id="hAxis" alignLabelsToInterval="true" autoAdjust="false"
+						   baseAtZero="false" interval="25"/>
+		</mx:horizontalAxis>
+		<mx:horizontalAxisRenderers>
+			<mx:AxisRenderer axis="{hAxis}" canDropLabels="true" color="0xF8F8F6" fontSize="8"/>
+		</mx:horizontalAxisRenderers>
+		<mx:fill>
+			<mx:SolidColor color="0x231F20"/>
+		</mx:fill>
+		<mx:backgroundElements>
+			<mx:GridLines cacheAsBitmap="true" cachePolicy="on" gridDirection="horizontal">
+				<mx:horizontalStroke>
+					<s:SolidColorStroke alpha="0.2" color="0xD4D4D3" weight="0"/>
+				</mx:horizontalStroke>
+			</mx:GridLines>
+		</mx:backgroundElements>
+		<mx:series>
+			<mx:LineSeries id="recordGraph" cacheAsBitmap="true" cachePolicy="on"
+						   dataProvider="{chartData}" form="segment" lineStroke="{s3}"
+						   sortOnXField="false"/>
+		</mx:series>
+	</mx:CartesianChart>
+</s:Application>

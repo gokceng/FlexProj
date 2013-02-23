@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="RealTimeDataServer Example with Remote Objects" default="all" basedir=".">
+	<!-- NOTE TO USERS: At least three properties set below may need to be  
+                        set for this build file to work with different deployment  
+                        environments.  The three minimum properties to examine  
+                        are client.host, client.port, and app.dir.  
+    -->
+
+	<!-- GENERAL PROPERTIES -->
+	<!--  
+         *********************************************************************  
+        Change server's host name and port (determined by web server  
+        deployment of server side of code).  
+        *********************************************************************  
+   -->
+	<property name="client.host" value="localhost" />
+	<property name="client.port" value="8080" />
+	<!--  
+        *********************************************************************  
+        Change definition of app.dir if necessary (to where RealTimeDataServer.war  
+               has been uncompressed).  
+        *********************************************************************  
+   -->
+	<property name="app.dir" value="." />
+	<property name="web.inf.dir" value="${app.dir}/Webcontent/WEB-INF" />
+	<property name="templates.dir" value="${app.dir}/templates" />
+	<property name="context.name" value="RealTimeDataServer" />
+
+
+	<!-- GENERAL JAVA PORTION PROPERTIES -->
+	<property name="src.dir" value="${app.dir}/src" />
+	<property name="classes.dir" value="${web.inf.dir}/classes" />
+	<property name="lib.dir" value="lib" />
+	<property name="dist.dir" value="${app.dir}/dist" />
+	<property name="serverside.war" value="${context.name}.war" />
+
+	<!-- Nothing special needed for classpath! -->
+	<path id="classpath">
+		<fileset dir="${web.inf.dir}/lib">
+			<include name="**/*.jar" />
+		</fileset>
+	</path>
+
+	<!-- BLAZEDS RELATED PROPERTIES -->
+	<property name="services.config.server.name" value="services-config.xml" />
+	<property name="services.config.client.name" value="services-config-client.xml" />
+	<property name="services.config.template" value="services-config-template.xml" />
+
+
+	<!-- GENERAL FLEX PORTION PROPERTIES (FLEX CLIENT) -->
+	<property name="app.flex.dir" value="${web.inf.dir}/flex" />
+
+
+
+	<target name="-init">
+		<mkdir dir="${dist.dir}" />
+	</target>
+
+	<target name="-copy-respective-services-config-files" depends="-clean-generated-blazeds-config-files">
+		<copy file="${templates.dir}/${services.config.template}" tofile="${app.flex.dir}/${services.config.server.name}">
+			<filterchain>
+				<replacetokens>
+					<token key="host" value="{server.name}" />
+					<token key="port" value="{server.port}" />
+				</replacetokens>
+			</filterchain>
+		</copy>
+		<copy file="${templates.dir}/${services.config.template}" tofile="${app.flex.dir}/${services.config.client.name}">
+			<filterchain>
+				<replacetokens>
+					<token key="host" value="${client.host}" />
+					<token key="port" value="${client.port}" />
+				</replacetokens>
+			</filterchain>
+		</copy>
+	</target>
+
+	<target name="compile" depends="compileJavaBasedServer" description="Compile Java and Flex code." />
+
+	<target name="compileJavaBasedServer" description="Compile Java source code used for server side.">
+		<javac srcdir="${src.dir}" debug="true" destdir="${classes.dir}" classpathref="classpath" includeantruntime="false" />
+	</target>
+
+	<target name="war" description="Build server's web application archive (WAR)." depends="-init,  
+                    -copy-respective-services-config-files,  
+                    compileJavaBasedServer">
+		<war webxml="${web.inf.dir}/web.xml" destfile="${dist.dir}/${serverside.war}" filesonly="true">
+			<zipfileset dir="${web.inf.dir}" excludes="web.xml  
+                               flex/${services.config.client.name}" prefix="WEB-INF" />
+		</war>
+	</target>
+
+	<target name="all" depends="war" description="Build it all; the default target." />
+
+
+	<target name="-clean-generated-blazeds-config-files">
+		<delete file="${app.flex.dir}/${services.config.server.name}" quiet="true" />
+		<delete file="${app.flex.dir}/${services.config.client.name}" quiet="true" />
+	</target>
+
+</project>
